@@ -6,7 +6,7 @@ from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import recall_score, confusion_matrix
+from sklearn.metrics import recall_score, confusion_matrix, roc_curve, roc_auc_score
 import matplotlib.pyplot as plt
 
 # Load training data
@@ -40,7 +40,7 @@ steps = [('o', over), ('u', under)]
 pipeline = Pipeline(steps=steps)
 X_train1, y_train1 = pipeline.fit_resample(X_train, y_train)
 
-# Random Forest Classifier
+# First Random Forest Classifier
 RF = RandomForestClassifier(n_estimators=100, criterion='entropy', max_depth=10)
 RF.fit(X_train1, y_train1)
 rf_y_pred_prob = RF.predict_proba(X_test)
@@ -49,6 +49,15 @@ rf_y_pred_prob = RF.predict_proba(X_test)
 fpr, tpr, thresh = roc_curve(y_test, rf_y_pred_prob[:, 1], pos_label=1)
 best_thresh_idx = np.argmax(tpr - fpr)
 best_thresh = thresh[best_thresh_idx]
+
+# Refit the model using the best threshold
+rf_y_pred_adjusted = (rf_y_pred_prob[:, 1] >= best_thresh).astype(int)
+
+recall = recall_score(y_test, rf_y_pred_adjusted)
+matrix = confusion_matrix(y_test, rf_y_pred_adjusted)
+
+print(f'Recall (Training): {recall}')
+print(f'Confusion Matrix (Training):\n{matrix}')
 
 # Load validation data
 val_data = pd.read_csv('data2.csv')
@@ -64,7 +73,7 @@ val_data['DR_AMT_MEAN_PCA'] = pca.transform(val_data[DR_AMT_MEAN])
 X_val = val_data[cols].copy()
 y_val = val_data['TARGET']
 
-# Predict on the validation data
+# Predict on the validation data using the trained model and the best threshold
 rf_y_val_prob = RF.predict_proba(X_val)
 rf_y_val_pred = (rf_y_val_prob[:, 1] >= best_thresh).astype(int)
 
