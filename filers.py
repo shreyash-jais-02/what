@@ -1,40 +1,44 @@
-
-
+import pickle
 import shap
-import numpy as np
 import pandas as pd
+from sklearn.metrics import confusion_matrix
 
-# Assuming you have the following variables already defined:
-# model: your trained binary classification model
-# X: your features dataframe
-# y: your actual target values
-# predictions: model predictions for X
+# Load the pickled model
+with open('path_to_your_pickled_model.pkl', 'rb') as f:
+    model = pickle.load(f)
+
+# Load your dataset (make sure the features match the model's expected input)
+X = pd.read_csv('path_to_your_dataset.csv')  # Adjust this to your data format
+y = X['target']  # Adjust to your target column
+
+# Drop the target column to keep only feature columns
+X = X.drop(columns=['target'])
+
+# Predict using the model
+y_pred = model.predict(X)
+
+# Create the SHAP explainer
+explainer = shap.TreeExplainer(model)
 
 # Calculate SHAP values
-explainer = shap.Explainer(model, X)
-shap_values = explainer(X)
+shap_values = explainer.shap_values(X)
 
-# Convert SHAP values to a DataFrame for easier analysis
-shap_values_df = pd.DataFrame(shap_values.values, columns=X.columns)
+# Identify true positives and true negatives
+cm = confusion_matrix(y, y_pred)
+true_positives = (y == 1) & (y_pred == 1)
+true_negatives = (y == 0) & (y_pred == 0)
 
-# Add prediction and actual values to the SHAP DataFrame
-shap_values_df['prediction'] = model.predict(X)
-shap_values_df['actual'] = y.values
+# Extract SHAP values for true positives and true negatives
+shap_values_true_positives = shap_values[1][true_positives]
+shap_values_true_negatives = shap_values[0][true_negatives]
 
-# Filter the DataFrame where prediction == actual == 1
-true_positive_shap = shap_values_df[(shap_values_df['prediction'] == 1) & (shap_values_df['actual'] == 1)]
+# Visualization
+# Summary plot for true positives
+shap.summary_plot(shap_values_true_positives, X[true_positives], plot_type="bar", title="Feature Importance for True Positives")
 
-# Filter the DataFrame where prediction == actual == 0
-true_negative_shap = shap_values_df[(shap_values_df['prediction'] == 0) & (shap_values_df['actual'] == 0)]
+# Summary plot for true negatives
+shap.summary_plot(shap_values_true_negatives, X[true_negatives], plot_type="bar", title="Feature Importance for True Negatives")
 
-# To interpret the contributions for true positives
-print("True Positives - SHAP values")
-print(true_positive_shap.head())
-
-# To interpret the contributions for true negatives
-print("True Negatives - SHAP values")
-print(true_negative_shap.head())
-
-# Visualize a single prediction (e.g., the first true positive case)
-shap.initjs()
-shap.force_plot(explainer.expected_value[1], shap_values[true_positive_shap.index[0]], X.iloc[true_positive_shap.index[0]])
+# If you want to visualize a single prediction explanation
+# For example, the first true positive prediction
+shap.force_plot(explainer.expected_value[1], shap_values_true_positives[0], X[true_positives].iloc[0])
