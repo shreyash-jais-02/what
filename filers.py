@@ -1,44 +1,24 @@
-import pickle
-import shap
 import pandas as pd
-from sklearn.metrics import confusion_matrix
 
-# Load the pickled model
-with open('path_to_your_pickled_model.pkl', 'rb') as f:
-    model = pickle.load(f)
+# Assuming X_test is your test DataFrame and y_test, y_pred are your true and predicted labels respectively.
+X_test = pd.DataFrame(...)  # Replace with your actual test data
+y_test = pd.Series(...)     # Replace with your actual true labels
+y_pred = pd.Series(...)     # Replace with your actual predictions
 
-# Load your dataset (make sure the features match the model's expected input)
-X = pd.read_csv('path_to_your_dataset.csv')  # Adjust this to your data format
-y = X['target']  # Adjust to your target column
+# Identify the indices of true positives, true negatives, and false positives
+true_positives = X_test[(y_test == 1) & (y_pred == 1)].index[:2]  # Get first 2 true positives
+true_negatives = X_test[(y_test == 0) & (y_pred == 0)].index[:2]  # Get first 2 true negatives
+false_positives = X_test[(y_test == 0) & (y_pred == 1)].index[:1] # Get first false positive
 
-# Drop the target column to keep only feature columns
-X = X.drop(columns=['target'])
+# Combine all indices
+indices_to_explain = list(true_positives) + list(true_negatives) + list(false_positives)
 
-# Predict using the model
-y_pred = model.predict(X)
+# Define your explainer and prediction function
+explainer = ...  # Initialize your explainer
+predict_f_rf = ...  # Define your prediction function
 
-# Create the SHAP explainer
-explainer = shap.TreeExplainer(model)
-
-# Calculate SHAP values
-shap_values = explainer.shap_values(X)
-
-# Identify true positives and true negatives
-cm = confusion_matrix(y, y_pred)
-true_positives = (y == 1) & (y_pred == 1)
-true_negatives = (y == 0) & (y_pred == 0)
-
-# Extract SHAP values for true positives and true negatives
-shap_values_true_positives = shap_values[1][true_positives]
-shap_values_true_negatives = shap_values[0][true_negatives]
-
-# Visualization
-# Summary plot for true positives
-shap.summary_plot(shap_values_true_positives, X[true_positives], plot_type="bar", title="Feature Importance for True Positives")
-
-# Summary plot for true negatives
-shap.summary_plot(shap_values_true_negatives, X[true_negatives], plot_type="bar", title="Feature Importance for True Negatives")
-
-# If you want to visualize a single prediction explanation
-# For example, the first true positive prediction
-shap.force_plot(explainer.expected_value[1], shap_values_true_positives[0], X[true_positives].iloc[0])
+# Loop through selected instances and explain each one
+for idx in indices_to_explain:
+    choosen_instance = X_test.iloc[[idx]].values[0]
+    exp = explainer.explain_instance(choosen_instance, predict_f_rf, num_features=10)
+    exp.show_in_notebook(show_all=False)
