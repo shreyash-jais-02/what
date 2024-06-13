@@ -1,12 +1,17 @@
-lfrom sklearn.ensemble import StackingClassifier
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import StackingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
 
-# Example data
-X = np.random.rand(100, 5)
-y = np.random.randint(0, 2, 100)
+# Assuming df is your DataFrame and 'Target' is your target column
+X = df.drop(columns='Target')
+y = df['Target']
+
+# Split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Base models
 estimators = [
@@ -21,12 +26,12 @@ clf = StackingClassifier(
 )
 
 # Train the stacking classifier
-clf.fit(X, y)
+clf.fit(X_train, y_train)
 
 # Function to extract and print feature importances
 def print_feature_importances(clf, feature_names):
     # Collect feature importances from base models
-    importances = np.zeros(X.shape[1])
+    importances = np.zeros(len(feature_names))
     
     for name, model in clf.named_estimators_.items():
         if hasattr(model, 'feature_importances_'):
@@ -53,8 +58,8 @@ def print_feature_importances(clf, feature_names):
     for name, importance in zip(feature_names, importances):
         print(f"{name} {importance:.4f}")
 
-# Feature names (example)
-feature_names = [f"feature_{i}" for i in range(X.shape[1])]
+# Feature names
+feature_names = X.columns.tolist()
 
 # Print the feature importances
 print_feature_importances(clf, feature_names)
